@@ -27,16 +27,19 @@ Edit the `WEBHOOK_URL` constant at the top of `index.html` if you switch modes.
 | `submitted_by` | No | Defaults to `HR Portal` |
 | `invoice_source` | No | Set to `github_pages_scan` for logging |
 
-## CORS (important for GitHub Pages)
+## CORS (fix “Network or CORS error”)
 
-Browsers block cross-origin requests unless n8n allows your Pages URL.
+Your live site: **https://jozybux.github.io/senselive-invoice-scan/**
 
-In n8n **Webhook – Invoice Upload** node → **Options** → add allowed origins, for example:
+In n8n → **Webhook – Invoice Upload2** → **Options** → **Allowed Origins**:
 
-- `https://YOUR_USERNAME.github.io`
-- Or `*` for testing only (not recommended for production)
+```
+https://jozybux.github.io
+```
 
-Alternatively host the same `index.html` on a subdomain that n8n already trusts.
+Then **deactivate and re-activate** the workflow.
+
+See **[CORS-FIX.md](CORS-FIX.md)** for step-by-step screenshots-level detail.
 
 ## Workflow checklist
 
