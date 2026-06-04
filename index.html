@@ -555,19 +555,49 @@
 
         const text = await res.text();
         let data = {};
-        try { data = JSON.parse(text); } catch (_) {}
+        let parseError = null;
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch (e) {
+          parseError = e.message;
+        }
 
         stopProgress();
         setTimeout(() => progressPanel.classList.remove('active'), 600);
 
-        if (res.ok && (data.status === 'success' || data.sheet_updated)) {
+        const isSuccess =
+          res.ok &&
+          (data.status === 'success' ||
+            data.sheet_updated === true ||
+            data.odoo_bill_id ||
+            data.odoo_url);
+
+        if (isSuccess) {
           showSuccess(data);
           selectedFile = null;
           fileInput.value = '';
           cameraInput.value = '';
           previewBox.classList.remove('visible');
+        } else if (data.status === 'validation_failed') {
+          throw new Error(
+            (data.message || 'Math audit failed.') +
+              (data.invoice_number ? ' Invoice: ' + data.invoice_number : ''),
+          );
+        } else if (res.ok && parseError) {
+          throw new Error(
+            'n8n returned 200 but response was not valid JSON. Re-import workflow (fixed Respond node) or check Executions. Raw: ' +
+              text.slice(0, 180),
+          );
+        } else if (res.ok && !text.trim()) {
+          throw new Error(
+            'n8n returned 200 with empty body. Open n8n → Executions — workflow may have stopped before Respond node.',
+          );
         } else {
-          throw new Error(data.message || data.error || 'Server returned ' + res.status);
+          throw new Error(
+            data.message ||
+              (typeof data.error === 'string' ? data.error : '') ||
+              (res.ok ? 'Unexpected response: ' + text.slice(0, 200) : 'Server returned ' + res.status),
+          );
         }
       } catch (err) {
         stopProgress();
