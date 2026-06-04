@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <meta name="description" content="SenseLive vendor invoice scan — upload to Odoo and Master Sheet via n8n" />
+  <title>SenseLive — Invoice Scan</title>
+  <style>
+    :root {
+      --brand: #1b5e20;
+      --brand-dark: #0d3d12;
+      --brand-soft: #e8f5e9;
+      --accent: #43a047;
+      --border: #c8e6c9;
+      --text: #1a1a1a;
+      --muted: #5f6368;
+      --error: #b71c1c;
+      --error-bg: #ffebee;
+      --ok: #2e7d32;
+      --ok-bg: #e8f5e9;
+      --radius: 14px;
+      --shadow: 0 12px 40px rgba(27, 94, 32, 0.14);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, #c8e6c9 0%, transparent 55%),
+        linear-gradient(180deg, #f1f8e9 0%, #fafafa 40%, #fff 100%);
+      color: var(--text);
+      padding: 20px 16px 32px;
+    }
+
+    .page {
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .brand-mark {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 12px;
+      background: linear-gradient(135deg, var(--brand) 0%, var(--accent) 100%);
+      color: #fff;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.5rem;
+      box-shadow: 0 6px 20px rgba(27, 94, 32, 0.35);
+    }
+
+    header h1 {
+      margin: 0 0 6px;
+      font-size: 1.45rem;
+      color: var(--brand);
+      letter-spacing: -0.02em;
+    }
+
+    header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .card-body { padding: 24px 20px; }
+
+    label {
+      display: block;
+      font-weight: 600;
+      font-size: 0.82rem;
+      color: var(--brand-dark);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 1rem;
+      margin-bottom: 20px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(67, 160, 71, 0.2);
+    }
+
+    .upload-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .btn-secondary {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 12px;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      background: var(--brand-soft);
+      color: var(--brand);
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .btn-secondary:hover {
+      background: #dcedc8;
+      border-color: var(--accent);
+    }
+
+    .btn-secondary svg {
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+
+    .drop {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 28px 16px;
+      text-align: center;
+      background: var(--brand-soft);
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      min-height: 120px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .drop:hover,
+    .drop.dragover {
+      border-color: var(--accent);
+      background: #dcedc8;
+    }
+
+    .drop p { margin: 0 0 6px; font-size: 0.95rem; }
+    .drop small { color: var(--muted); font-size: 0.78rem; }
+
+    #fileInput,
+    #cameraInput { display: none; }
+
+    .preview-box {
+      display: none;
+      margin-top: 14px;
+      padding: 12px;
+      background: #f5f5f5;
+      border-radius: 10px;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .preview-box.visible { display: flex; }
+
+    .preview-box img {
+      width: 64px;
+      height: 64px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+    }
+
+    .preview-meta {
+      flex: 1;
+      min-width: 0;
+      font-size: 0.88rem;
+    }
+
+    .preview-meta strong {
+      display: block;
+      color: var(--brand);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .preview-meta span { color: var(--muted); font-size: 0.8rem; }
+
+    .btn-primary {
+      width: 100%;
+      margin-top: 18px;
+      padding: 16px;
+      background: linear-gradient(180deg, var(--accent) 0%, var(--brand) 100%);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(27, 94, 32, 0.35);
+      transition: transform 0.15s, opacity 0.2s;
+    }
+
+    .btn-primary:hover:not(:disabled) { transform: translateY(-1px); }
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .progress-panel {
+      display: none;
+      padding: 16px 20px 20px;
+      border-top: 1px solid var(--border);
+      background: #fafafa;
+    }
+
+    .progress-panel.active { display: block; }
+
+    .bar-track {
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--brand));
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+
+    .step-label {
+      margin: 10px 0 0;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .result-panel {
+      display: none;
+      margin: 0 20px 20px;
+      padding: 16px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      line-height: 1.55;
+    }
+
+    .result-panel.ok {
+      display: block;
+      background: var(--ok-bg);
+      border: 1px solid var(--ok);
+      color: var(--brand-dark);
+    }
+
+    .result-panel.err {
+      display: block;
+      background: var(--error-bg);
+      border: 1px solid var(--error);
+      color: var(--error);
+    }
+
+    .result-panel a {
+      color: var(--brand);
+      font-weight: 700;
+    }
+
+    .result-panel .row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(27, 94, 32, 0.1);
+    }
+
+    .result-panel .row:last-child { border-bottom: none; }
+
+    footer {
+      margin-top: 24px;
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    @media (max-width: 380px) {
+      .upload-actions { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div class="brand-mark" aria-hidden="true">S</div>
+      <h1>Vendor Invoice Scan</h1>
+      <p>Photograph or upload a vendor invoice. n8n extracts data, creates an Odoo draft bill, and updates the Master Sheet.</p>
+    </header>
+
+    <main class="card">
+      <div class="card-body">
+        <form id="uploadForm" novalidate>
+          <label for="submittedBy">Submitted by</label>
+          <input
+            type="text"
+            id="submittedBy"
+            name="submitted_by"
+            placeholder="Your name or department"
+            value="HR Portal"
+            autocomplete="name"
+          />
+
+          <label>Invoice (hardcopy scan)</label>
+          <div class="upload-actions">
+            <button type="button" class="btn-secondary" id="cameraBtn" aria-label="Take photo with camera">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+              Scan with camera
+            </button>
+            <button type="button" class="btn-secondary" id="browseBtn" aria-label="Choose file from device">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+              Choose file
+            </button>
+          </div>
+
+          <div class="drop" id="dropZone" tabindex="0" role="button" aria-label="Drop invoice file here">
+            <p>Drop PDF or image here</p>
+            <small>PDF, JPG, PNG, WebP — max 15 MB</small>
+          </div>
+
+          <input type="file" id="fileInput" name="invoice_file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*" />
+          <input type="file" id="cameraInput" accept="image/*" capture="environment" />
+
+          <div class="preview-box" id="previewBox">
+            <img id="previewImg" alt="" hidden />
+            <div class="preview-meta">
+              <strong id="previewName">—</strong>
+              <span id="previewSize">—</span>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary" id="submitBtn">Process invoice</button>
+        </form>
+      </div>
+
+      <div class="progress-panel" id="progressPanel" aria-live="polite">
+        <div class="bar-track"><div class="bar-fill" id="barFill"></div></div>
+        <p class="step-label" id="stepLabel">Uploading…</p>
+      </div>
+
+      <div class="result-panel" id="resultPanel" role="status"></div>
+    </main>
+
+    <footer>
+      SenseLive Finance · Powered by n8n + Odoo
+    </footer>
+  </div>
+
+  <script>
+    // ─── CONFIG ───────────────────────────────────────────────────────────────
+    // Production (workflow ACTIVE in n8n):
+    const WEBHOOK_URL = 'https://ai.senselive.io/webhook/senselive-invoice-upload';
+    // Testing only (Execute workflow / test mode):
+    // const WEBHOOK_URL = 'https://ai.senselive.io/webhook-test/senselive-invoice-upload';
+
+    const MAX_BYTES = 15 * 1024 * 1024;
+    const ALLOWED_TYPES = [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+    ];
+
+    const $ = (id) => document.getElementById(id);
+    const form = $('uploadForm');
+    const fileInput = $('fileInput');
+    const cameraInput = $('cameraInput');
+    const dropZone = $('dropZone');
+    const previewBox = $('previewBox');
+    const previewImg = $('previewImg');
+    const previewName = $('previewName');
+    const previewSize = $('previewSize');
+    const progressPanel = $('progressPanel');
+    const barFill = $('barFill');
+    const stepLabel = $('stepLabel');
+    const resultPanel = $('resultPanel');
+    const submitBtn = $('submitBtn');
+
+    let selectedFile = null;
+    let progressTimer = null;
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function validateFile(file) {
+      if (!file) return 'No file selected.';
+      if (file.size > MAX_BYTES) return 'File too large (max 15 MB).';
+      const okType = ALLOWED_TYPES.includes(file.type) ||
+        /\.(pdf|jpe?g|png|webp)$/i.test(file.name);
+      if (!okType) return 'Use PDF, JPG, PNG, or WebP only.';
+      return null;
+    }
+
+    function setFile(file) {
+      const err = validateFile(file);
+      if (err) {
+        alert(err);
+        return;
+      }
+      selectedFile = file;
+      previewName.textContent = file.name;
+      previewSize.textContent = formatSize(file.size) + ' · ' + (file.type || 'file');
+      previewBox.classList.add('visible');
+
+      if (file.type.startsWith('image/')) {
+        const url = URL.createObjectURL(file);
+        previewImg.src = url;
+        previewImg.hidden = false;
+        previewImg.onload = () => URL.revokeObjectURL(url);
+      } else {
+        previewImg.hidden = true;
+        previewImg.removeAttribute('src');
+      }
+    }
+
+    $('cameraBtn').addEventListener('click', () => cameraInput.click());
+    $('browseBtn').addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+    });
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files[0]) setFile(fileInput.files[0]);
+    });
+    cameraInput.addEventListener('change', () => {
+      if (cameraInput.files[0]) setFile(cameraInput.files[0]);
+    });
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+    });
+
+    const steps = [
+      'Uploading to n8n…',
+      'AI extracting invoice fields…',
+      'Math audit…',
+      'Creating Odoo draft bill…',
+      'Updating Master Sheet…',
+    ];
+
+    function startProgress() {
+      progressPanel.classList.add('active');
+      resultPanel.className = 'result-panel';
+      resultPanel.style.display = 'none';
+      let i = 0;
+      barFill.style.width = '8%';
+      stepLabel.textContent = steps[0];
+      progressTimer = setInterval(() => {
+        if (i < steps.length - 1) {
+          i++;
+          stepLabel.textContent = steps[i];
+          barFill.style.width = Math.min(92, 12 + i * 18) + '%';
+        }
+      }, 2800);
+      return () => {
+        clearInterval(progressTimer);
+        barFill.style.width = '100%';
+        stepLabel.textContent = 'Done';
+      };
+    }
+
+    function showSuccess(data) {
+      resultPanel.className = 'result-panel ok';
+      resultPanel.innerHTML =
+        '<strong>Invoice processed</strong>' +
+        '<div class="row"><span>Invoice No.</span><span>' + esc(data.invoice_number || '—') + '</span></div>' +
+        '<div class="row"><span>Vendor</span><span>' + esc(data.vendor || '—') + '</span></div>' +
+        '<div class="row"><span>Total</span><span>₹' + esc(String(data.total ?? '—')) + '</span></div>' +
+        (data.odoo_url
+          ? '<p style="margin:12px 0 0"><a href="' + esc(data.odoo_url) + '" target="_blank" rel="noopener">Open draft bill in Odoo →</a></p>'
+          : '<p style="margin:12px 0 0">Master Sheet updated.</p>');
+      resultPanel.style.display = 'block';
+    }
+
+    function showError(msg) {
+      resultPanel.className = 'result-panel err';
+      resultPanel.innerHTML =
+        '<strong>Could not process invoice</strong><p style="margin:8px 0 0">' + esc(msg) + '</p>' +
+        '<p style="margin:10px 0 0;font-size:0.8rem">Tips: activate the n8n workflow, use the production webhook URL, and allow your GitHub Pages origin in n8n CORS (if needed).</p>';
+      resultPanel.style.display = 'block';
+    }
+
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!selectedFile) {
+        alert('Please scan or choose an invoice first.');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      const stopProgress = startProgress();
+
+      const fd = new FormData();
+      fd.append('invoice_file', selectedFile, selectedFile.name);
+      fd.append('submitted_by', $('submittedBy').value.trim() || 'HR Portal');
+      fd.append('invoice_source', 'github_pages_scan');
+
+      try {
+        const res = await fetch(WEBHOOK_URL, {
+          method: 'POST',
+          body: fd,
+          mode: 'cors',
+        });
+
+        const text = await res.text();
+        let data = {};
+        try { data = JSON.parse(text); } catch (_) {}
+
+        stopProgress();
+        setTimeout(() => progressPanel.classList.remove('active'), 600);
+
+        if (res.ok && (data.status === 'success' || data.sheet_updated)) {
+          showSuccess(data);
+          selectedFile = null;
+          fileInput.value = '';
+          cameraInput.value = '';
+          previewBox.classList.remove('visible');
+        } else {
+          throw new Error(data.message || data.error || 'Server returned ' + res.status);
+        }
+      } catch (err) {
+        stopProgress();
+        progressPanel.classList.remove('active');
+        const msg = err.message || String(err);
+        if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+          showError('Network or CORS error — cannot reach n8n. Check webhook URL and n8n allowed origins.');
+        } else {
+          showError(msg);
+        }
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
