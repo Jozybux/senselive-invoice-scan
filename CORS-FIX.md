@@ -19,6 +19,18 @@ Browsers block cross-origin requests unless n8n allows your GitHub origin.
 6. **Deactivate** the workflow, then **Activate** again (required so CORS uses the published version)
 7. Test upload from GitHub Pages again
 
+## Empty body (“200 with empty body”)
+
+The webhook only returns JSON when **Respond – Success2** runs. If **Gmail** or **Google Sheets** was *before* Respond and failed, you get HTTP 200 with an empty body.
+
+**Fix:** Re-import `Senselive – Invoice Scan → Odoo + Sheet (READY).json` (v5+). Flow is now:
+
+`Google Sheets → Respond – Success` (+ Gmail in parallel, optional)
+
+Then **deactivate → activate** the workflow.
+
+Check **Executions** in n8n for the real error (Odoo, Sheets ID, Gemini, etc.).
+
 ## If still failing
 
 | Check | Action |
